@@ -1,26 +1,31 @@
 package com.github.florent37.singledateandtimepicker.dialog;
 
 import android.content.Context;
-import android.content.res.ColorStateList;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.StateListDrawable;
-import android.support.annotation.ColorInt;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
-import android.util.StateSet;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.ViewTreeObserver;
 import android.widget.TextView;
 
+import com.github.florent37.singledateandtimepicker.DateHelper;
 import com.github.florent37.singledateandtimepicker.R;
 import com.github.florent37.singledateandtimepicker.SingleDateAndTimePicker;
-import com.github.florent37.singledateandtimepicker.widget.WheelMinutePicker;
+import com.github.florent37.singledateandtimepicker.widget.DateWithLabel;
 
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
+import java.util.Locale;
+import java.util.TimeZone;
+
+import androidx.annotation.ColorInt;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+
+import static com.github.florent37.singledateandtimepicker.widget.SingleDateAndTimeConstants.STEP_MINUTES_DEFAULT;
 
 public class DoubleDateAndTimePickerDialog extends BaseDialog {
 
@@ -31,10 +36,15 @@ public class DoubleDateAndTimePickerDialog extends BaseDialog {
     private TextView buttonTab1;
     private SingleDateAndTimePicker pickerTab0;
     private SingleDateAndTimePicker pickerTab1;
+    private final DateHelper dateHelper = new DateHelper();
     private View tab0;
     private View tab1;
     @Nullable
     private String tab0Text, tab1Text, title;
+    @Nullable
+    private Integer titleTextSize;
+    @Nullable
+    private Integer bottomSheetHeight;
     @Nullable
     private String todayText;
     @Nullable
@@ -43,6 +53,9 @@ public class DoubleDateAndTimePickerDialog extends BaseDialog {
     private Date tab0Date;
     @Nullable
     private Date tab1Date;
+    private boolean secondDateAfterFirst;
+    private boolean tab0Days, tab0Hours, tab0Minutes;
+    private boolean tab1Days, tab1Hours, tab1Minutes;
 
     private DoubleDateAndTimePickerDialog(Context context) {
         this(context, false);
@@ -77,25 +90,43 @@ public class DoubleDateAndTimePickerDialog extends BaseDialog {
         tab0 = view.findViewById(R.id.tab0);
         tab1 = view.findViewById(R.id.tab1);
 
+        if (pickerTab0 != null) {
+            if (bottomSheetHeight != null) {
+                ViewGroup.LayoutParams params = pickerTab0.getLayoutParams();
+                params.height = bottomSheetHeight;
+                pickerTab0.setLayoutParams(params);
+            }
+        }
+
+        if (pickerTab1 != null) {
+            if (bottomSheetHeight != null) {
+                ViewGroup.LayoutParams params = pickerTab1.getLayoutParams();
+                params.height = bottomSheetHeight;
+                pickerTab1.setLayoutParams(params);
+            }
+        }
+
         final View titleLayout = view.findViewById(R.id.sheetTitleLayout);
         final TextView titleTextView = (TextView) view.findViewById(R.id.sheetTitle);
-        if(title != null) {
+        if (title != null) {
             if (titleTextView != null) {
                 titleTextView.setText(title);
                 if (titleTextColor != null) {
                     titleTextView.setTextColor(titleTextColor);
                 }
+                if (titleTextSize != null) {
+                    titleTextView.setTextSize(titleTextSize);
+                }
             }
             if (mainColor != null && titleLayout != null) {
                 titleLayout.setBackgroundColor(mainColor);
             }
-        }
-        else {
+        } else {
             titleLayout.setVisibility(View.GONE);
         }
 
-        pickerTab0.setTodayText(todayText);
-        pickerTab1.setTodayText(todayText);
+        pickerTab0.setTodayText(new DateWithLabel(todayText, new Date()));
+        pickerTab1.setTodayText(new DateWithLabel(todayText, new Date()));
 
         final View sheetContentLayout = view.findViewById(R.id.sheetContentLayout);
         if (sheetContentLayout != null) {
@@ -155,6 +186,10 @@ public class DoubleDateAndTimePickerDialog extends BaseDialog {
             if (mainColor != null) {
                 buttonOk.setTextColor(mainColor);
             }
+
+            if (titleTextSize != null) {
+                buttonOk.setTextSize(titleTextSize);
+            }
         }
 
         buttonOk.setOnClickListener(new View.OnClickListener() {
@@ -181,11 +216,18 @@ public class DoubleDateAndTimePickerDialog extends BaseDialog {
             pickerTab1.setVisibleItemCount(DEFAULT_ITEM_COUNT_MODE_NORMAL);
         }
 
+        pickerTab0.setDisplayDays(tab0Days);
+        pickerTab0.setDisplayHours(tab0Hours);
+        pickerTab0.setDisplayMinutes(tab0Minutes);
+        pickerTab1.setDisplayDays(tab1Days);
+        pickerTab1.setDisplayHours(tab1Hours);
+        pickerTab1.setDisplayMinutes(tab1Minutes);
+
         pickerTab0.setMustBeOnFuture(mustBeOnFuture);
         pickerTab1.setMustBeOnFuture(mustBeOnFuture);
 
-        pickerTab0.setStepMinutes(minutesStep);
-        pickerTab1.setStepMinutes(minutesStep);
+        pickerTab0.setStepSizeMinutes(minutesStep);
+        pickerTab1.setStepSizeMinutes(minutesStep);
 
         if (mainColor != null) {
             pickerTab0.setSelectedTextColor(mainColor);
@@ -225,13 +267,28 @@ public class DoubleDateAndTimePickerDialog extends BaseDialog {
             pickerTab0.setDayFormatter(dayFormatter);
             pickerTab1.setDayFormatter(dayFormatter);
         }
+
+        if (customLocale != null) {
+            pickerTab0.setCustomLocale(customLocale);
+            pickerTab1.setCustomLocale(customLocale);
+        }
+
+        if (secondDateAfterFirst) {
+            pickerTab0.addOnDateChangedListener(new SingleDateAndTimePicker.OnDateChangedListener() {
+                @Override
+                public void onDateChanged(String displayed, Date date) {
+                    pickerTab1.setMinDate(date);
+                    pickerTab1.checkPickersMinMax();
+                }
+            });
+        }
     }
 
     @NonNull
     private StateListDrawable getTabsListDrawable() {
         final StateListDrawable colorState0 = new StateListDrawable();
-        colorState0.addState(new int[] {android.R.attr.state_selected}, new ColorDrawable(mainColor));
-        colorState0.addState(new int[] {-android.R.attr.state_selected}, new ColorDrawable(backgroundColor));
+        colorState0.addState(new int[]{android.R.attr.state_selected}, new ColorDrawable(mainColor));
+        colorState0.addState(new int[]{-android.R.attr.state_selected}, new ColorDrawable(backgroundColor));
         return colorState0;
     }
 
@@ -252,6 +309,16 @@ public class DoubleDateAndTimePickerDialog extends BaseDialog {
 
     public DoubleDateAndTimePickerDialog setTitle(@Nullable String title) {
         this.title = title;
+        return this;
+    }
+
+    public DoubleDateAndTimePickerDialog setTitleTextSize(@Nullable Integer titleTextSize) {
+        this.titleTextSize = titleTextSize;
+        return this;
+    }
+
+    public DoubleDateAndTimePickerDialog setBottomSheetHeight(@Nullable Integer bottomSheetHeight) {
+        this.bottomSheetHeight = bottomSheetHeight;
         return this;
     }
 
@@ -300,6 +367,11 @@ public class DoubleDateAndTimePickerDialog extends BaseDialog {
         return this;
     }
 
+    public DoubleDateAndTimePickerDialog setCustomLocale(Locale locale) {
+        this.customLocale = locale;
+        return this;
+    }
+
     public DoubleDateAndTimePickerDialog setTab0Date(Date tab0Date) {
         this.tab0Date = tab0Date;
         return this;
@@ -310,6 +382,53 @@ public class DoubleDateAndTimePickerDialog extends BaseDialog {
         return this;
     }
 
+    public DoubleDateAndTimePickerDialog setSecondDateAfterFirst(boolean secondDateAfterFirst) {
+        this.secondDateAfterFirst = secondDateAfterFirst;
+        return this;
+    }
+
+    public DoubleDateAndTimePickerDialog setTab0DisplayDays(boolean tab0Days) {
+        this.tab0Days = tab0Days;
+        return this;
+    }
+
+    public DoubleDateAndTimePickerDialog setTab0DisplayHours(boolean tab0Hours) {
+        this.tab0Hours = tab0Hours;
+        return this;
+    }
+
+    public DoubleDateAndTimePickerDialog setTab0DisplayMinutes(boolean tab0Minutes) {
+        this.tab0Minutes = tab0Minutes;
+        return this;
+    }
+
+    public DoubleDateAndTimePickerDialog setTab1DisplayDays(boolean tab1Days) {
+        this.tab1Days = tab1Days;
+        return this;
+    }
+
+    public DoubleDateAndTimePickerDialog setTab1DisplayHours(boolean tab1Hours) {
+        this.tab1Hours = tab1Hours;
+        return this;
+    }
+
+    public DoubleDateAndTimePickerDialog setTab1DisplayMinutes(boolean tab1Minutes) {
+        this.tab1Minutes = tab1Minutes;
+        return this;
+    }
+
+    public DoubleDateAndTimePickerDialog setFocusable(boolean focusable) {
+        bottomSheetHelper.setFocusable(focusable);
+        return this;
+    }
+
+    private DoubleDateAndTimePickerDialog setTimeZone(TimeZone timeZone) {
+        dateHelper.setTimeZone(timeZone);
+//        pickerTab0.setTimeZone(timeZone);
+//        pickerTab1.setTimeZone(timeZone);
+        return this;
+    }
+
     @Override
     public void display() {
         super.display();
@@ -317,7 +436,7 @@ public class DoubleDateAndTimePickerDialog extends BaseDialog {
     }
 
     @Override
-    public void dismiss(){
+    public void dismiss() {
         super.dismiss();
         bottomSheetHelper.dismiss();
     }
@@ -378,15 +497,22 @@ public class DoubleDateAndTimePickerDialog extends BaseDialog {
         @Nullable
         private String title;
         @Nullable
+        private Integer titleTextSize;
+        @Nullable
+        private Integer bottomSheetHeight;
+        @Nullable
         private String buttonOkText;
         @Nullable
         private String todayText;
 
         private boolean curved;
+        private boolean secondDateAfterFirst;
         private boolean mustBeOnFuture;
-        private int minutesStep = WheelMinutePicker.STEP_MINUTES_DEFAULT;
+        private int minutesStep = STEP_MINUTES_DEFAULT;
 
         private SimpleDateFormat dayFormatter;
+
+        private Locale customLocale;
 
         @ColorInt
         @Nullable
@@ -411,12 +537,31 @@ public class DoubleDateAndTimePickerDialog extends BaseDialog {
         @Nullable
         private Date tab1Date;
 
+        private boolean tab0Days = true;
+        private boolean tab0Hours = true;
+        private boolean tab0Minutes = true;
+        private boolean tab1Days = true;
+        private boolean tab1Hours = true;
+        private boolean tab1Minutes = true;
+        private boolean focusable = false;
+        private TimeZone timeZone;
+
         public Builder(Context context) {
             this.context = context;
         }
 
         public DoubleDateAndTimePickerDialog.Builder title(@Nullable String title) {
             this.title = title;
+            return this;
+        }
+
+        public DoubleDateAndTimePickerDialog.Builder titleTextSize(@Nullable Integer titleTextSize) {
+            this.titleTextSize = titleTextSize;
+            return this;
+        }
+
+        public DoubleDateAndTimePickerDialog.Builder bottomSheetHeight(@Nullable Integer bottomSheetHeight) {
+            this.bottomSheetHeight = bottomSheetHeight;
             return this;
         }
 
@@ -442,6 +587,11 @@ public class DoubleDateAndTimePickerDialog extends BaseDialog {
 
         public DoubleDateAndTimePickerDialog.Builder dayFormatter(SimpleDateFormat dayFormatter) {
             this.dayFormatter = dayFormatter;
+            return this;
+        }
+
+        public DoubleDateAndTimePickerDialog.Builder customLocale(Locale locale) {
+            this.customLocale = locale;
             return this;
         }
 
@@ -511,9 +661,56 @@ public class DoubleDateAndTimePickerDialog extends BaseDialog {
             return this;
         }
 
+        public DoubleDateAndTimePickerDialog.Builder secondDateAfterFirst(boolean secondDateAfterFirst) {
+            this.secondDateAfterFirst = secondDateAfterFirst;
+            return this;
+        }
+
+        public DoubleDateAndTimePickerDialog.Builder setTab0DisplayDays(boolean tab0Days) {
+            this.tab0Days = tab0Days;
+            return this;
+        }
+
+        public DoubleDateAndTimePickerDialog.Builder setTab0DisplayHours(boolean tab0Hours) {
+            this.tab0Hours = tab0Hours;
+            return this;
+        }
+
+        public DoubleDateAndTimePickerDialog.Builder setTab0DisplayMinutes(boolean tab0Minutes) {
+            this.tab0Minutes = tab0Minutes;
+            return this;
+        }
+
+        public DoubleDateAndTimePickerDialog.Builder setTab1DisplayDays(boolean tab1Days) {
+            this.tab1Days = tab1Days;
+            return this;
+        }
+
+        public DoubleDateAndTimePickerDialog.Builder setTab1DisplayHours(boolean tab1Hours) {
+            this.tab1Hours = tab1Hours;
+            return this;
+        }
+
+        public DoubleDateAndTimePickerDialog.Builder setTab1DisplayMinutes(boolean tab1Minutes) {
+            this.tab1Minutes = tab1Minutes;
+            return this;
+        }
+
+        public DoubleDateAndTimePickerDialog.Builder setTimeZone(TimeZone timeZone) {
+            this.timeZone = timeZone;
+            return this;
+        }
+
+        public DoubleDateAndTimePickerDialog.Builder focusable() {
+            this.focusable = true;
+            return this;
+        }
+
         public DoubleDateAndTimePickerDialog build() {
             final DoubleDateAndTimePickerDialog dialog = new DoubleDateAndTimePickerDialog(context, bottomSheet)
                     .setTitle(title)
+                    .setTitleTextSize(titleTextSize)
+                    .setBottomSheetHeight(bottomSheetHeight)
                     .setTodayText(todayText)
                     .setListener(listener)
                     .setCurved(curved)
@@ -524,10 +721,20 @@ public class DoubleDateAndTimePickerDialog extends BaseDialog {
                     .setMaxDateRange(maxDate)
                     .setMinDateRange(minDate)
                     .setDefaultDate(defaultDate)
+                    .setTab0DisplayDays(tab0Days)
+                    .setTab0DisplayHours(tab0Hours)
+                    .setTab0DisplayMinutes(tab0Minutes)
+                    .setTab1DisplayDays(tab1Days)
+                    .setTab1DisplayHours(tab1Hours)
+                    .setTab1DisplayMinutes(tab1Minutes)
                     .setTab0Date(tab0Date)
                     .setTab1Date(tab1Date)
                     .setDayFormatter(dayFormatter)
-                    .setMustBeOnFuture(mustBeOnFuture);
+                    .setCustomLocale(customLocale)
+                    .setMustBeOnFuture(mustBeOnFuture)
+                    .setSecondDateAfterFirst(secondDateAfterFirst)
+                    .setTimeZone(timeZone)
+                    .setFocusable(focusable);
 
             if (mainColor != null) {
                 dialog.setMainColor(mainColor);
@@ -555,9 +762,10 @@ public class DoubleDateAndTimePickerDialog extends BaseDialog {
             }
         }
 
-        public void dismiss(){
-            if(dialog!=null)
+        public void dismiss() {
+            if (dialog != null) {
                 dialog.dismiss();
+            }
         }
     }
 }

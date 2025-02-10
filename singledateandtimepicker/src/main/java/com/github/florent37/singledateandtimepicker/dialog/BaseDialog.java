@@ -1,15 +1,15 @@
 package com.github.florent37.singledateandtimepicker.dialog;
 
 import android.graphics.Color;
-import android.support.annotation.ColorInt;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
+import androidx.annotation.ColorInt;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
-import com.github.florent37.singledateandtimepicker.widget.WheelMinutePicker;
-
-import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.Locale;
+
+import static com.github.florent37.singledateandtimepicker.widget.SingleDateAndTimeConstants.STEP_MINUTES_DEFAULT;
 
 /**
  * Created by nor on 1/2/2017.
@@ -19,14 +19,15 @@ public abstract class BaseDialog {
     public static final int DEFAULT_ITEM_COUNT_MODE_CURVED = 7;
     public static final int DEFAULT_ITEM_COUNT_MODE_NORMAL = 5;
 
-    @Nullable
     private boolean isDisplaying;
-    @ColorInt
-    protected Integer backgroundColor = null;
 
     @Nullable
     @ColorInt
-    protected Integer mainColor = Color.BLACK;
+    protected Integer backgroundColor = Color.WHITE;
+
+    @Nullable
+    @ColorInt
+    protected Integer mainColor = Color.BLUE;
 
     @Nullable
     @ColorInt
@@ -35,7 +36,7 @@ public abstract class BaseDialog {
     protected boolean okClicked = false;
     protected boolean curved = false;
     protected boolean mustBeOnFuture = false;
-    protected int minutesStep = WheelMinutePicker.STEP_MINUTES_DEFAULT;
+    protected int minutesStep = STEP_MINUTES_DEFAULT;
 
     @Nullable
     protected Date minDate;
@@ -47,8 +48,17 @@ public abstract class BaseDialog {
     protected boolean displayDays;
     protected boolean displayMinutes;
     protected boolean displayHours;
+    protected boolean displayDaysOfMonth;
+    protected boolean displayMonth;
+    protected boolean displayYears;
+    protected boolean displayMonthNumbers;
+
+    @Nullable
+    protected Boolean isAmPm;
 
     protected SimpleDateFormat dayFormatter;
+
+    protected Locale customLocale;
 
     public void display() {
         this.isDisplaying = true;

@@ -1,9 +1,9 @@
 package com.github.florent37.sample.singledateandtimepicker;
 
-import android.graphics.Color;
 import android.os.Bundle;
-import android.support.v7.app.AppCompatActivity;
+import android.util.Log;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.github.florent37.singledateandtimepicker.SingleDateAndTimePicker;
 import com.github.florent37.singledateandtimepicker.dialog.DoubleDateAndTimePickerDialog;
@@ -14,32 +14,40 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
+import java.util.TimeZone;
 import java.util.concurrent.TimeUnit;
 
-import butterknife.Bind;
+import androidx.appcompat.app.AppCompatActivity;
+import butterknife.BindView;
 import butterknife.ButterKnife;
 import butterknife.OnClick;
 
 public class SingleDatePickerMainActivityWithDoublePicker extends AppCompatActivity {
 
-    @Bind(R.id.doubleText)
+    @BindView(R.id.doubleText)
     TextView doubleText;
-    @Bind(R.id.singleText)
+
+    @BindView(R.id.singleText)
     TextView singleText;
 
-    @Bind(R.id.singleTimeText)
+    @BindView(R.id.singleTimeText)
     TextView singleTimeText;
 
-    @Bind(R.id.singleDateText)
+    @BindView(R.id.singleDateText)
     TextView singleDateText;
 
+    @BindView(R.id.singleDateLocaleText)
+    TextView singleDateLocaleText;
 
 
     SimpleDateFormat simpleDateFormat;
     SimpleDateFormat simpleTimeFormat;
     SimpleDateFormat simpleDateOnlyFormat;
+    SimpleDateFormat simpleDateLocaleFormat;
     SingleDateAndTimePickerDialog.Builder singleBuilder;
     DoubleDateAndTimePickerDialog.Builder doubleBuilder;
+
+    private static String TAG = "SingleDatePickerMainActivityWithDoublePicker";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -52,6 +60,8 @@ public class SingleDatePickerMainActivityWithDoublePicker extends AppCompatActiv
         this.simpleTimeFormat = new SimpleDateFormat("hh:mm aa", Locale.getDefault());
 
         this.simpleDateOnlyFormat = new SimpleDateFormat("EEE d MMM", Locale.getDefault());
+
+        this.simpleDateLocaleFormat = new SimpleDateFormat("EEE d MMM", Locale.GERMAN);
     }
 
     @Override
@@ -70,31 +80,37 @@ public class SingleDatePickerMainActivityWithDoublePicker extends AppCompatActiv
 
         Calendar calendar = Calendar.getInstance();
 
-        calendar.set(Calendar.HOUR_OF_DAY, 17);
-        calendar.set(Calendar.MINUTE, 5);
+        calendar.set(Calendar.HOUR_OF_DAY, 21);
+        calendar.set(Calendar.MINUTE, 50);
 
-
-        Date defaultDate = calendar.getTime();
+        final Date defaultDate = calendar.getTime();
 
         singleBuilder = new SingleDateAndTimePickerDialog.Builder(this)
-
+                .setTimeZone(TimeZone.getDefault())
                 .bottomSheet()
                 .curved()
 
-                .defaultDate( defaultDate )
+                .defaultDate(defaultDate)
 
-                .titleTextColor(Color.GREEN)
-                .backgroundColor(Color.BLACK)
-                .mainColor(Color.GREEN)
+                //.titleTextColor(Color.GREEN)
+                //.backgroundColor(Color.BLACK)
+                //.mainColor(Color.GREEN)
 
-                .displayHours(true)
                 .displayMinutes(true)
+                .displayHours(true)
                 .displayDays(false)
+                //.displayMonth(true)
+                //.displayYears(true)
 
                 .displayListener(new SingleDateAndTimePickerDialog.DisplayListener() {
                     @Override
                     public void onDisplayed(SingleDateAndTimePicker picker) {
+                        Log.d(TAG, "Dialog displayed");
+                    }
 
+                    @Override
+                    public void onClosed(SingleDateAndTimePicker picker) {
+                        Log.d(TAG, "Dialog closed");
                     }
                 })
 
@@ -116,13 +132,13 @@ public class SingleDatePickerMainActivityWithDoublePicker extends AppCompatActiv
         final Date defaultDate = calendar.getTime();
 
         singleBuilder = new SingleDateAndTimePickerDialog.Builder(this)
-
+                .setTimeZone(TimeZone.getDefault())
                 .bottomSheet()
                 .curved()
 
-                .titleTextColor(Color.GREEN)
-                .backgroundColor(Color.BLACK)
-                .mainColor(Color.GREEN)
+                //.titleTextColor(Color.GREEN)
+                //.backgroundColor(Color.BLACK)
+                //.mainColor(Color.GREEN)
 
                 .displayHours(false)
                 .displayMinutes(false)
@@ -131,7 +147,12 @@ public class SingleDatePickerMainActivityWithDoublePicker extends AppCompatActiv
                 .displayListener(new SingleDateAndTimePickerDialog.DisplayListener() {
                     @Override
                     public void onDisplayed(SingleDateAndTimePicker picker) {
+                        Log.d(TAG, "Dialog displayed");
+                    }
 
+                    @Override
+                    public void onClosed(SingleDateAndTimePicker picker) {
+                        Log.d(TAG, "Dialog closed");
                     }
                 })
 
@@ -149,39 +170,48 @@ public class SingleDatePickerMainActivityWithDoublePicker extends AppCompatActiv
     public void simpleClicked() {
 
         final Calendar calendar = Calendar.getInstance();
-        calendar.set(Calendar.DAY_OF_MONTH, 1);
-        calendar.set(Calendar.MONTH, 0);
-        calendar.set(Calendar.YEAR, 2017);
-        final Date minDate = calendar.getTime();
+        calendar.set(Calendar.DAY_OF_MONTH, 4); // 4. Feb. 2018
+        calendar.set(Calendar.MONTH, 1);
+        calendar.set(Calendar.YEAR, 2018);
+        calendar.set(Calendar.HOUR_OF_DAY, 11);
+        calendar.set(Calendar.MINUTE, 13);
 
-        calendar.set(Calendar.DAY_OF_MONTH, 5);
-        final Date maxDate = calendar.getTime();
-
-        calendar.set(Calendar.DAY_OF_MONTH, 2);
         final Date defaultDate = calendar.getTime();
 
         singleBuilder = new SingleDateAndTimePickerDialog.Builder(this)
+                .setTimeZone(TimeZone.getDefault())
                 .bottomSheet()
                 .curved()
 
-                .backgroundColor(Color.BLACK)
-                .mainColor(Color.GREEN)
+                //.backgroundColor(Color.BLACK)
+                //.mainColor(Color.GREEN)
 
-                //.displayHours(false)
-                //.displayMinutes(false)
+                .displayHours(false)
+                .displayMinutes(false)
+                .displayDays(false)
+                .displayMonth(true)
+                .displayDaysOfMonth(true)
+                .displayYears(true)
+                .defaultDate(defaultDate)
+                .displayMonthNumbers(true)
 
                 //.mustBeOnFuture()
 
                 //.minutesStep(15)
                 //.mustBeOnFuture()
-                .defaultDate(defaultDate)
-                .minDateRange(minDate)
-                .maxDateRange(maxDate)
+                //.defaultDate(defaultDate)
+               // .minDateRange(minDate)
+               // .maxDateRange(maxDate)
 
                 .displayListener(new SingleDateAndTimePickerDialog.DisplayListener() {
                     @Override
                     public void onDisplayed(SingleDateAndTimePicker picker) {
+                        Log.d(TAG, "Dialog displayed");
+                    }
 
+                    @Override
+                    public void onClosed(SingleDateAndTimePicker picker) {
+                        Log.d(TAG, "Dialog closed");
                     }
                 })
 
@@ -209,16 +239,20 @@ public class SingleDatePickerMainActivityWithDoublePicker extends AppCompatActiv
         final Date maxDate = calendarMax.getTime();
 
         doubleBuilder = new DoubleDateAndTimePickerDialog.Builder(this)
+                .setTimeZone(TimeZone.getDefault())
                 //.bottomSheet()
                 //.curved()
 
-                .backgroundColor(Color.BLACK)
-                .mainColor(Color.GREEN)
+//                .backgroundColor(Color.BLACK)
+//                .mainColor(Color.GREEN)
                 .minutesStep(15)
                 .mustBeOnFuture()
 
                 .minDateRange(minDate)
                 .maxDateRange(maxDate)
+
+                .secondDateAfterFirst(true)
+
                 //.defaultDate(now)
                 .tab0Date(now)
                 .tab1Date(new Date(now.getTime() + TimeUnit.HOURS.toMillis(1)))
@@ -238,5 +272,37 @@ public class SingleDatePickerMainActivityWithDoublePicker extends AppCompatActiv
                     }
                 });
         doubleBuilder.display();
+    }
+
+    @OnClick(R.id.singleDateLocaleLayout)
+    public void singleDateLocaleClicked() {
+        singleBuilder = new SingleDateAndTimePickerDialog.Builder(this)
+                .customLocale(Locale.GERMAN)
+                .bottomSheet()
+                .curved()
+                .displayHours(false)
+                .displayMinutes(false)
+                .displayDays(true)
+
+                .displayListener(new SingleDateAndTimePickerDialog.DisplayListener() {
+                    @Override
+                    public void onDisplayed(SingleDateAndTimePicker picker) {
+                        Log.d(TAG, "Dialog displayed");
+                    }
+
+                    @Override
+                    public void onClosed(SingleDateAndTimePicker picker) {
+                        Log.d(TAG, "Dialog closed");
+                    }
+                })
+
+                .title("")
+                .listener(new SingleDateAndTimePickerDialog.Listener() {
+                    @Override
+                    public void onDateSelected(Date date) {
+                        singleDateLocaleText.setText(simpleDateLocaleFormat.format(date));
+                    }
+                });
+        singleBuilder.display();
     }
 }

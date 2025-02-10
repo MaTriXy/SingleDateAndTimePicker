@@ -1,28 +1,39 @@
 package com.github.florent37.singledateandtimepicker.dialog;
 
 import android.content.Context;
-import android.support.annotation.ColorInt;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.TextView;
 
+import com.github.florent37.singledateandtimepicker.DateHelper;
 import com.github.florent37.singledateandtimepicker.R;
 import com.github.florent37.singledateandtimepicker.SingleDateAndTimePicker;
-import com.github.florent37.singledateandtimepicker.widget.WheelMinutePicker;
+import com.github.florent37.singledateandtimepicker.widget.DateWithLabel;
 
 import java.text.SimpleDateFormat;
-import java.util.Calendar;
 import java.util.Date;
+import java.util.Locale;
+import java.util.TimeZone;
+
+import androidx.annotation.ColorInt;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+
+import static com.github.florent37.singledateandtimepicker.widget.SingleDateAndTimeConstants.STEP_MINUTES_DEFAULT;
 
 public class SingleDateAndTimePickerDialog extends BaseDialog {
 
+    private final DateHelper dateHelper = new DateHelper();
     private Listener listener;
     private BottomSheetHelper bottomSheetHelper;
     private SingleDateAndTimePicker picker;
 
     @Nullable
     private String title;
+    @Nullable
+    private Integer titleTextSize;
+    @Nullable
+    private Integer bottomSheetHeight;
     @Nullable
     private String todayText;
     @Nullable
@@ -45,11 +56,18 @@ public class SingleDateAndTimePickerDialog extends BaseDialog {
             @Override
             public void onLoaded(View view) {
                 init(view);
+                if (displayListener != null) {
+                    displayListener.onDisplayed(picker);
+                }
             }
 
             @Override
             public void onClose() {
                 SingleDateAndTimePickerDialog.this.onClose();
+
+                if (displayListener != null) {
+                    displayListener.onClosed(picker);
+                }
             }
         });
     }
@@ -57,6 +75,14 @@ public class SingleDateAndTimePickerDialog extends BaseDialog {
 
     private void init(View view) {
         picker = (SingleDateAndTimePicker) view.findViewById(R.id.picker);
+        picker.setDateHelper(dateHelper);
+        if (picker != null) {
+            if (bottomSheetHeight != null) {
+                ViewGroup.LayoutParams params = picker.getLayoutParams();
+                params.height = bottomSheetHeight;
+                picker.setLayoutParams(params);
+            }
+        }
 
         final TextView buttonOk = (TextView) view.findViewById(R.id.buttonOk);
         if (buttonOk != null) {
@@ -70,6 +96,10 @@ public class SingleDateAndTimePickerDialog extends BaseDialog {
 
             if (mainColor != null) {
                 buttonOk.setTextColor(mainColor);
+            }
+
+            if (titleTextSize != null) {
+                buttonOk.setTextSize(titleTextSize);
             }
         }
 
@@ -94,9 +124,13 @@ public class SingleDateAndTimePickerDialog extends BaseDialog {
             if (titleTextColor != null) {
                 titleTextView.setTextColor(titleTextColor);
             }
+
+            if (titleTextSize != null) {
+                titleTextView.setTextSize(titleTextSize);
+            }
         }
 
-        picker.setTodayText(todayText);
+        picker.setTodayText(new DateWithLabel(todayText, new Date()));
 
         final View pickerTitleHeader = view.findViewById(R.id.pickerTitleHeader);
         if (mainColor != null && pickerTitleHeader != null) {
@@ -112,15 +146,22 @@ public class SingleDateAndTimePickerDialog extends BaseDialog {
         }
         picker.setMustBeOnFuture(mustBeOnFuture);
 
-        picker.setStepMinutes(minutesStep);
+        picker.setStepSizeMinutes(minutesStep);
 
         if (dayFormatter != null) {
             picker.setDayFormatter(dayFormatter);
         }
 
+        if (customLocale != null) {
+            picker.setCustomLocale(customLocale);
+        }
+
         if (mainColor != null) {
             picker.setSelectedTextColor(mainColor);
         }
+
+        // displayYears used in setMinDate / setMaxDate
+        picker.setDisplayYears(displayYears);
 
         if (minDate != null) {
             picker.setMinDate(minDate);
@@ -132,12 +173,15 @@ public class SingleDateAndTimePickerDialog extends BaseDialog {
 
         if (defaultDate != null) {
             picker.setDefaultDate(defaultDate);
-            Calendar calendar = Calendar.getInstance();
-            calendar.setTime(defaultDate);
-            picker.selectDate(calendar);
+        }
+
+        if (isAmPm != null) {
+            picker.setIsAmPm(isAmPm);
         }
 
         picker.setDisplayDays(displayDays);
+        picker.setDisplayMonths(displayMonth);
+        picker.setDisplayDaysOfMonth(displayDaysOfMonth);
         picker.setDisplayMinutes(displayMinutes);
         picker.setDisplayHours(displayHours);
     }
@@ -163,6 +207,16 @@ public class SingleDateAndTimePickerDialog extends BaseDialog {
 
     public SingleDateAndTimePickerDialog setTitle(@Nullable String title) {
         this.title = title;
+        return this;
+    }
+
+    public SingleDateAndTimePickerDialog setTitleTextSize(@Nullable Integer titleTextSize) {
+        this.titleTextSize = titleTextSize;
+        return this;
+    }
+
+    public SingleDateAndTimePickerDialog setBottomSheetHeight(@Nullable Integer bottomSheetHeight) {
+        this.bottomSheetHeight = bottomSheetHeight;
         return this;
     }
 
@@ -201,8 +255,29 @@ public class SingleDateAndTimePickerDialog extends BaseDialog {
         return this;
     }
 
+    public SingleDateAndTimePickerDialog setDisplayMonthNumbers(boolean displayMonthNumbers) {
+        this.displayMonthNumbers = displayMonthNumbers;
+        return this;
+    }
+
     public SingleDateAndTimePickerDialog setDisplayHours(boolean displayHours) {
         this.displayHours = displayHours;
+        return this;
+    }
+
+    public SingleDateAndTimePickerDialog setDisplayDaysOfMonth(boolean displayDaysOfMonth) {
+        this.displayDaysOfMonth = displayDaysOfMonth;
+        return this;
+    }
+
+
+    private SingleDateAndTimePickerDialog setDisplayMonth(boolean displayMonth) {
+        this.displayMonth = displayMonth;
+        return this;
+    }
+
+    private SingleDateAndTimePickerDialog setDisplayYears(boolean displayYears) {
+        this.displayYears = displayYears;
         return this;
     }
 
@@ -211,13 +286,30 @@ public class SingleDateAndTimePickerDialog extends BaseDialog {
         return this;
     }
 
+    public SingleDateAndTimePickerDialog setCustomLocale(Locale locale) {
+        this.customLocale = locale;
+        return this;
+    }
+
+    public SingleDateAndTimePickerDialog setIsAmPm(boolean isAmPm) {
+        this.isAmPm = Boolean.valueOf(isAmPm);
+        return this;
+    }
+
+    public SingleDateAndTimePickerDialog setFocusable(boolean focusable) {
+        bottomSheetHelper.setFocusable(focusable);
+        return this;
+    }
+
+    private SingleDateAndTimePickerDialog setTimeZone(TimeZone timeZone) {
+        dateHelper.setTimeZone(timeZone);
+        return this;
+    }
+
     @Override
     public void display() {
         super.display();
         bottomSheetHelper.display();
-        if(displayListener != null){
-            displayListener.onDisplayed(picker);
-        }
     }
 
     @Override
@@ -231,7 +323,7 @@ public class SingleDateAndTimePickerDialog extends BaseDialog {
     }
 
     @Override
-    public void dismiss(){
+    public void dismiss() {
         super.dismiss();
         bottomSheetHelper.dismiss();
     }
@@ -242,6 +334,7 @@ public class SingleDateAndTimePickerDialog extends BaseDialog {
 
     public interface DisplayListener {
         void onDisplayed(SingleDateAndTimePicker picker);
+        void onClosed(SingleDateAndTimePicker picker);
     }
 
     public static class Builder {
@@ -257,17 +350,31 @@ public class SingleDateAndTimePickerDialog extends BaseDialog {
         private String title;
 
         @Nullable
+        private Integer titleTextSize;
+
+        @Nullable
+        private Integer bottomSheetHeight;
+
+        @Nullable
         private String todayText;
 
         private boolean bottomSheet;
 
         private boolean curved;
         private boolean mustBeOnFuture;
-        private int minutesStep = WheelMinutePicker.STEP_MINUTES_DEFAULT;
+        private int minutesStep = STEP_MINUTES_DEFAULT;
 
         private boolean displayDays = true;
-        private boolean displayMinutes  = true;
-        private boolean displayHours  = true;
+        private boolean displayMinutes = true;
+        private boolean displayHours = true;
+        private boolean displayMonth = false;
+        private boolean displayDaysOfMonth = false;
+        private boolean displayYears = false;
+        private boolean displayMonthNumbers = false;
+        private boolean focusable = false;
+
+        @Nullable
+        private Boolean isAmPm;
 
         @ColorInt
         @Nullable
@@ -291,12 +398,26 @@ public class SingleDateAndTimePickerDialog extends BaseDialog {
         @Nullable
         private SimpleDateFormat dayFormatter;
 
+        @Nullable
+        private Locale customLocale;
+        private TimeZone timeZone;
+
         public Builder(Context context) {
             this.context = context;
         }
 
         public Builder title(@Nullable String title) {
             this.title = title;
+            return this;
+        }
+
+        public Builder titleTextSize(@Nullable Integer titleTextSize) {
+            this.titleTextSize = titleTextSize;
+            return this;
+        }
+
+        public Builder bottomSheetHeight(@Nullable Integer bottomSheetHeight) {
+            this.bottomSheetHeight = bottomSheetHeight;
             return this;
         }
 
@@ -330,6 +451,11 @@ public class SingleDateAndTimePickerDialog extends BaseDialog {
             return this;
         }
 
+        public Builder displayAmPm(boolean isAmPm) {
+            this.isAmPm = isAmPm;
+            return this;
+        }
+
         public Builder displayMinutes(boolean displayMinutes) {
             this.displayMinutes = displayMinutes;
             return this;
@@ -337,6 +463,21 @@ public class SingleDateAndTimePickerDialog extends BaseDialog {
 
         public Builder displayHours(boolean displayHours) {
             this.displayHours = displayHours;
+            return this;
+        }
+
+        public Builder displayDaysOfMonth(boolean displayDaysOfMonth) {
+            this.displayDaysOfMonth = displayDaysOfMonth;
+            return this;
+        }
+
+        public Builder displayMonth(boolean displayMonth) {
+            this.displayMonth = displayMonth;
+            return this;
+        }
+
+        public Builder displayYears(boolean displayYears) {
+            this.displayYears = displayYears;
             return this;
         }
 
@@ -375,6 +516,11 @@ public class SingleDateAndTimePickerDialog extends BaseDialog {
             return this;
         }
 
+        public Builder displayMonthNumbers(boolean displayMonthNumbers) {
+            this.displayMonthNumbers = displayMonthNumbers;
+            return this;
+        }
+
         public Builder defaultDate(Date defaultDate) {
             this.defaultDate = defaultDate;
             return this;
@@ -385,9 +531,26 @@ public class SingleDateAndTimePickerDialog extends BaseDialog {
             return this;
         }
 
+        public Builder customLocale(Locale locale) {
+            this.customLocale = locale;
+            return this;
+        }
+
+        public Builder setTimeZone(TimeZone timeZone) {
+            this.timeZone = timeZone;
+            return this;
+        }
+
+        public Builder focusable() {
+            this.focusable = true;
+            return this;
+        }
+
         public SingleDateAndTimePickerDialog build() {
             final SingleDateAndTimePickerDialog dialog = new SingleDateAndTimePickerDialog(context, bottomSheet)
                     .setTitle(title)
+                    .setTitleTextSize(titleTextSize)
+                    .setBottomSheetHeight(bottomSheetHeight)
                     .setTodayText(todayText)
                     .setListener(listener)
                     .setCurved(curved)
@@ -396,10 +559,17 @@ public class SingleDateAndTimePickerDialog extends BaseDialog {
                     .setMinDateRange(minDate)
                     .setDefaultDate(defaultDate)
                     .setDisplayHours(displayHours)
+                    .setDisplayMonth(displayMonth)
+                    .setDisplayYears(displayYears)
+                    .setDisplayDaysOfMonth(displayDaysOfMonth)
                     .setDisplayMinutes(displayMinutes)
+                    .setDisplayMonthNumbers(displayMonthNumbers)
                     .setDisplayDays(displayDays)
                     .setDayFormatter(dayFormatter)
-                    .setMustBeOnFuture(mustBeOnFuture);
+                    .setCustomLocale(customLocale)
+                    .setMustBeOnFuture(mustBeOnFuture)
+                    .setTimeZone(timeZone)
+                    .setFocusable(focusable);
 
             if (mainColor != null) {
                 dialog.setMainColor(mainColor);
@@ -417,6 +587,10 @@ public class SingleDateAndTimePickerDialog extends BaseDialog {
                 dialog.setDisplayListener(displayListener);
             }
 
+            if (isAmPm != null) {
+                dialog.setIsAmPm(isAmPm);
+            }
+
             return dialog;
         }
 
@@ -431,9 +605,10 @@ public class SingleDateAndTimePickerDialog extends BaseDialog {
             }
         }
 
-        public void dismiss(){
-            if(dialog!=null)
+        public void dismiss() {
+            if (dialog != null)
                 dialog.dismiss();
         }
     }
+
 }

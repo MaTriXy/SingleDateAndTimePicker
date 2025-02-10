@@ -5,150 +5,156 @@ import android.util.AttributeSet;
 
 import com.github.florent37.singledateandtimepicker.R;
 
-import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 
-public class WheelDayPicker extends WheelPicker {
+import androidx.annotation.NonNull;
 
-    public static final int DAYS_PADDING = 364;
-    private int defaultIndex;
+import static com.github.florent37.singledateandtimepicker.widget.SingleDateAndTimeConstants.DAYS_PADDING;
 
-    private int todayPosition;
+public class WheelDayPicker extends WheelPicker<DateWithLabel> {
+
+    private static final String DAY_FORMAT_PATTERN = "EEE d MMM";
 
     private SimpleDateFormat simpleDateFormat;
+    private SimpleDateFormat customDateFormat;
+    private int dayCount = DAYS_PADDING;
 
     private OnDaySelectedListener onDaySelectedListener;
 
-    WheelPicker.Adapter adapter;
-
     public WheelDayPicker(Context context) {
-        this(context, null);
+        super(context);
     }
 
     public WheelDayPicker(Context context, AttributeSet attrs) {
         super(context, attrs);
-
-        this.simpleDateFormat = new SimpleDateFormat("EEE d MMM", getCurrentLocale());
-        this.adapter = new Adapter();
-        setAdapter(adapter);
-
-        updateDays();
-
-        updateDefaultDay();
-    }
-
-    public WheelDayPicker setDayFormatter(SimpleDateFormat simpleDateFormat){
-        this.simpleDateFormat = simpleDateFormat;
-        updateDays();
-        return this;
     }
 
     @Override
-    protected void onItemSelected(int position, Object item) {
+    protected void init() {
+        simpleDateFormat = new SimpleDateFormat(DAY_FORMAT_PATTERN, getCurrentLocale());
+        simpleDateFormat.setTimeZone(dateHelper.getTimeZone());
+    }
+
+    @Override
+    public void setCustomLocale(Locale customLocale) {
+        super.setCustomLocale(customLocale);
+        simpleDateFormat = new SimpleDateFormat(DAY_FORMAT_PATTERN, getCurrentLocale());
+        simpleDateFormat.setTimeZone(dateHelper.getTimeZone());
+    }
+
+    @Override
+    protected DateWithLabel initDefault() {
+        return new DateWithLabel(getTodayText(), new Date());
+    }
+
+    @NonNull
+    private String getTodayText() {
+        return getLocalizedString(R.string.picker_today);
+    }
+
+    @Override
+    protected void onItemSelected(int position, DateWithLabel item) {
         if (onDaySelectedListener != null) {
-            final String itemText = (String) item;
-            final Date date = convertItemToDate(position);
-            onDaySelectedListener.onDaySelected(this, position, itemText, date);
+            onDaySelectedListener.onDaySelected(this, position, item.label, item.date);
         }
     }
 
-    @Override
-    protected void onItemCurrentScroll(int position, Object item) {
+    public void setDayCount(int dayCount) {
+        this.dayCount = dayCount;
     }
 
     @Override
-    public int getDefaultItemPosition() {
-        return defaultIndex;
-    }
-
-    private void updateDays() {
-        final List<String> data = new ArrayList<>();
+    protected List<DateWithLabel> generateAdapterValues(boolean showOnlyFutureDates) {
+        final List<DateWithLabel> days = new ArrayList<>();
 
         Calendar instance = Calendar.getInstance();
-        instance.add(Calendar.DATE, -1 * DAYS_PADDING - 1);
-        for (int i = (-1) * DAYS_PADDING; i < 0; ++i) {
+        instance.setTimeZone(dateHelper.getTimeZone());
+        int startDayOffset = showOnlyFutureDates ? 0 : -1 * dayCount;
+        instance.add(Calendar.DATE, startDayOffset - 1);
+        for (int i = startDayOffset; i < 0; ++i) {
             instance.add(Calendar.DAY_OF_MONTH, 1);
-            data.add(getFormattedValue(instance.getTime()));
+            Date date = instance.getTime();
+            days.add(new DateWithLabel(getFormattedValue(date), date));
         }
-
-        todayPosition = data.size();
-        defaultIndex = todayPosition;
 
         //today
-        data.add(getResources().getString(R.string.picker_today));
+        days.add(new DateWithLabel(getTodayText(), new Date()));
 
         instance = Calendar.getInstance();
+        instance.setTimeZone(dateHelper.getTimeZone());
 
-        for (int i = 0; i < DAYS_PADDING; ++i) {
+        for (int i = 0; i < dayCount; ++i) {
             instance.add(Calendar.DATE, 1);
-            data.add(getFormattedValue(instance.getTime()));
+            Date date = instance.getTime();
+            days.add(new DateWithLabel(getFormattedValue(date), date));
         }
 
-        adapter.setData(data);
-        notifyDatasetChanged();
+        return days;
     }
 
     protected String getFormattedValue(Object value) {
-        return simpleDateFormat.format(value);
+        return getDateFormat().format(value);
+    }
+
+    public WheelDayPicker setDayFormatter(SimpleDateFormat simpleDateFormat) {
+        simpleDateFormat.setTimeZone(dateHelper.getTimeZone());
+        this.customDateFormat = simpleDateFormat;
+        updateAdapter();
+        return this;
     }
 
     public void setOnDaySelectedListener(OnDaySelectedListener onDaySelectedListener) {
         this.onDaySelectedListener = onDaySelectedListener;
     }
 
-    private void updateDefaultDay() {
-        setSelectedItemPosition(defaultIndex);
-    }
-
-    public int getDefaultDayIndex() {
-        return defaultIndex;
-    }
-
     public Date getCurrentDate() {
         return convertItemToDate(super.getCurrentItemPosition());
     }
 
+    private SimpleDateFormat getDateFormat() {
+        if (customDateFormat != null) {
+            return customDateFormat;
+        }
+        return simpleDateFormat;
+    }
+
     private Date convertItemToDate(int itemPosition) {
-        Date date = null;
-        String itemText = adapter.getItemText(itemPosition);
+        Date date;
+        final String itemText = adapter.getItemText(itemPosition);
         final Calendar todayCalendar = Calendar.getInstance();
-        if (itemPosition == todayPosition) {
-            date = todayCalendar.getTime();
-        } else {
-            try {
-                date = simpleDateFormat.parse(itemText);
-            } catch (ParseException e) {
-                e.printStackTrace();
+        todayCalendar.setTimeZone(dateHelper.getTimeZone());
+
+        int todayPosition = -1;
+        final List<DateWithLabel> data = adapter.getData();
+
+        for (int i = 0; i < data.size(); i++) {
+            if (data.get(i).label.equals(getTodayText())) {
+                todayPosition = i;
+                break;
             }
         }
 
-        if (date != null) {
-            //try to know the year
-            final Calendar dateCalendar = Calendar.getInstance();
-            dateCalendar.setTime(date);
-
-            todayCalendar.add(Calendar.DATE, (itemPosition - todayPosition));
-
-            dateCalendar.set(Calendar.YEAR, todayCalendar.get(Calendar.YEAR));
-            date = dateCalendar.getTime();
+        if (getTodayText().equals(itemText)) {
+            date = todayCalendar.getTime();
+        } else {
+            todayCalendar.add(Calendar.DAY_OF_YEAR, (itemPosition - todayPosition));
+            date = todayCalendar.getTime();
         }
-
         return date;
     }
 
-    public String getCurrentDay() {
-        return adapter.getItemText(getCurrentItemPosition());
-    }
-
-    public void setTodayText(String todayText) {
-        int index = adapter.getData().indexOf(getResources().getString(R.string.picker_today));
-        if (index != -1) {
-            adapter.getData().set(index, todayText);
-            notifyDatasetChanged();
+    public void setTodayText(DateWithLabel today) {
+        final List<DateWithLabel> data = adapter.getData();
+        for (int i = 0; i < data.size(); i++) {
+            if (data.get(i).label.equals(getTodayText())) {
+                adapter.getData().set(i, today);
+                notifyDatasetChanged();
+            }
         }
     }
 

@@ -8,66 +8,46 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 
-public class WheelMinutePicker extends WheelPicker {
-    public static final int MIN_MINUTES = 0;
-    public static final int MAX_MINUTES = 59;
-    public static final int STEP_MINUTES_DEFAULT = 5;
+import androidx.annotation.NonNull;
 
-    private int defaultMinute;
-    private int stepMinutes = STEP_MINUTES_DEFAULT;
+import static com.github.florent37.singledateandtimepicker.widget.SingleDateAndTimeConstants.MAX_MINUTES;
+import static com.github.florent37.singledateandtimepicker.widget.SingleDateAndTimeConstants.MIN_MINUTES;
+import static com.github.florent37.singledateandtimepicker.widget.SingleDateAndTimeConstants.STEP_MINUTES_DEFAULT;
 
-    private WheelPicker.Adapter adapter;
+public class WheelMinutePicker extends WheelPicker<String> {
 
-    private int lastScrollPosition;
+    private int stepMinutes;
 
-    private OnMinuteSelectedListener onMinuteSelectedListener;
+    private OnMinuteChangedListener onMinuteChangedListener;
+    private OnFinishedLoopListener onFinishedLoopListener;
 
     public WheelMinutePicker(Context context) {
-        this(context, null);
+        super(context);
     }
 
     public WheelMinutePicker(Context context, AttributeSet attrs) {
         super(context, attrs);
-        initAdapter();
     }
 
-    private void initAdapter(){
+    @Override
+    protected void init() {
+        stepMinutes = STEP_MINUTES_DEFAULT;
+    }
+
+    @Override
+    protected String initDefault() {
+        Calendar now = Calendar.getInstance();
+        now.setTimeZone(dateHelper.getTimeZone());
+        return getFormattedValue(now.get(Calendar.MINUTE));
+    }
+
+    @Override
+    protected List<String> generateAdapterValues(boolean showOnlyFutureDates) {
         final List<String> minutes = new ArrayList<>();
         for (int min = MIN_MINUTES; min <= MAX_MINUTES; min += stepMinutes) {
             minutes.add(getFormattedValue(min));
         }
-        adapter = new Adapter(minutes);
-        setAdapter(adapter);
-
-        java.util.Calendar calendar = java.util.Calendar.getInstance();
-     // todo fix.   calendar.setTime(defaultDate);
-        defaultMinute = calendar.get(Calendar.MINUTE);
-
-        updateDefaultMinute();
-    }
-
-
-    public void setOnMinuteSelectedListener(OnMinuteSelectedListener onMinuteSelectedListener) {
-        this.onMinuteSelectedListener = onMinuteSelectedListener;
-    }
-
-    @Override
-    protected void onItemSelected(int position, Object item) {
-        if (onMinuteSelectedListener != null) {
-            onMinuteSelectedListener.onMinuteSelected(this, position, convertItemToMinute(item));
-        }
-    }
-
-    @Override
-    protected void onItemCurrentScroll(int position, Object item) {
-        if (lastScrollPosition != position) {
-            if (onMinuteSelectedListener != null) {
-                onMinuteSelectedListener.onMinuteCurrentScrolled(this, position, convertItemToMinute(item));
-                if (lastScrollPosition == 11 && position == 0)
-                    onMinuteSelectedListener.onMinuteScrolledNewHour(this);
-            }
-            lastScrollPosition = position;
-        }
+        return minutes;
     }
 
     private int findIndexOfMinute(int minute) {
@@ -75,42 +55,40 @@ public class WheelMinutePicker extends WheelPicker {
         for (int i = 0; i < itemCount; ++i) {
             final String object = adapter.getItemText(i);
             final Integer value = Integer.valueOf(object);
+
+            if (minute == value) {
+                return i;
+            }
+
             if (minute < value) {
                 return i - 1;
             }
         }
-        return 0;
+        return itemCount - 1;
+
+    }
+
+    @Override
+    public int findIndexOfDate(@NonNull Date date) {
+        return findIndexOfMinute(dateHelper.getMinuteOf(date));
     }
 
     protected String getFormattedValue(Object value) {
         Object valueItem = value;
         if (value instanceof Date) {
-            Calendar instance = Calendar.getInstance();
+            final Calendar instance = Calendar.getInstance();
+            instance.setTimeZone(dateHelper.getTimeZone());
             instance.setTime((Date) value);
             valueItem = instance.get(Calendar.MINUTE);
         }
         return String.format(getCurrentLocale(), FORMAT, valueItem);
     }
 
-    private void updateDefaultMinute() {
-        setSelectedItemPosition(findIndexOfMinute(defaultMinute));
-    }
-
-    public void setDefaultMinute(int minutes) {
-        this.defaultMinute = minutes;
-        updateDefaultMinute();
-    }
-
-    public void setStepMinutes(int stepMinutes) {
+    public void setStepSizeMinutes(int stepMinutes) {
         if (stepMinutes < 60 && stepMinutes > 0) {
             this.stepMinutes = stepMinutes;
-            initAdapter();
+            updateAdapter();
         }
-    }
-
-    @Override
-    public int getDefaultItemPosition() {
-        return findIndexOfMinute(defaultMinute);
     }
 
     private int convertItemToMinute(Object item) {
@@ -121,11 +99,37 @@ public class WheelMinutePicker extends WheelPicker {
         return convertItemToMinute(adapter.getItem(getCurrentItemPosition()));
     }
 
-    public interface OnMinuteSelectedListener {
-        void onMinuteSelected(WheelMinutePicker picker, int position, int minutes);
+    public WheelMinutePicker setOnMinuteChangedListener(OnMinuteChangedListener onMinuteChangedListener) {
+        this.onMinuteChangedListener = onMinuteChangedListener;
+        return this;
+    }
 
-        void onMinuteCurrentScrolled(WheelMinutePicker picker, int position, int minutes);
+    public WheelMinutePicker setOnFinishedLoopListener(OnFinishedLoopListener onFinishedLoopListener) {
+        this.onFinishedLoopListener = onFinishedLoopListener;
+        return this;
+    }
 
-        void onMinuteScrolledNewHour(WheelMinutePicker picker);
+    @Override
+    protected void onItemSelected(int position, String item) {
+        super.onItemSelected(position, item);
+        if (onMinuteChangedListener != null) {
+            onMinuteChangedListener.onMinuteChanged(this, convertItemToMinute(item));
+        }
+    }
+
+    @Override
+    protected void onFinishedLoop() {
+        super.onFinishedLoop();
+        if (onFinishedLoopListener != null) {
+            onFinishedLoopListener.onFinishedLoop(this);
+        }
+    }
+
+    public interface OnMinuteChangedListener {
+        void onMinuteChanged(WheelMinutePicker picker, int minutes);
+    }
+
+    public interface OnFinishedLoopListener {
+        void onFinishedLoop(WheelMinutePicker picker);
     }
 }
